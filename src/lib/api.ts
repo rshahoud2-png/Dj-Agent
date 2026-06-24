@@ -1,4 +1,4 @@
-import type { EventType, Setlist, Track, TrackAnalysis } from "./types";
+import type { DjExportTarget, DjIntegration, EventType, Setlist, Track, TrackAnalysis } from "./types";
 
 const ENGINE_URL = import.meta.env.VITE_ENGINE_URL ?? "http://127.0.0.1:17821";
 
@@ -46,5 +46,11 @@ export const engineApi = {
     request<{ path: string }>(`/setlists/${setlistId}/export`, {
       method: "POST",
       body: JSON.stringify({ format, destination }),
+    }),
+  integrations: () => request<DjIntegration[]>("/integrations"),
+  exportDjSoftware: (setlistId: number, target: DjExportTarget, destination: string) =>
+    request<{ paths: string[] }>(`/setlists/${setlistId}/export-dj`, {
+      method: "POST",
+      body: JSON.stringify({ target, destination }),
     }),
 };

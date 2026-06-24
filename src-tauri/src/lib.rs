@@ -1,7 +1,10 @@
 use std::sync::Mutex;
 
 use tauri::{Manager, RunEvent};
-use tauri_plugin_shell::{process::CommandChild, ShellExt};
+use tauri_plugin_shell::{
+    process::{CommandChild, CommandEvent},
+    ShellExt,
+};
 
 struct EngineProcess(Mutex<Option<CommandChild>>);
 
@@ -14,9 +17,28 @@ pub fn run() {
                 .shell()
                 .sidecar("dj-agent-engine")
                 .map_err(|error| format!("Could not prepare local analysis engine: {error}"))?;
-            let (_events, child) = sidecar
+            let (mut events, child) = sidecar
                 .spawn()
                 .map_err(|error| format!("Could not start local analysis engine: {error}"))?;
+            tauri::async_runtime::spawn(async move {
+                while let Some(event) = events.recv().await {
+                    match event {
+                        CommandEvent::Stdout(line) => {
+                            println!("[dj-agent-engine] {}", String::from_utf8_lossy(&line));
+                        }
+                        CommandEvent::Stderr(line) => {
+                            eprintln!("[dj-agent-engine] {}", String::from_utf8_lossy(&line));
+                        }
+                        CommandEvent::Error(error) => {
+                            eprintln!("[dj-agent-engine] process error: {error}");
+                        }
+                        CommandEvent::Terminated(status) => {
+                            eprintln!("[dj-agent-engine] terminated: {status:?}");
+                        }
+                        _ => {}
+                    }
+                }
+            });
             app.manage(EngineProcess(Mutex::new(Some(child))));
             Ok(())
         })

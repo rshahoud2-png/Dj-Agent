@@ -1,13 +1,15 @@
 import { Download, Headphones, MoveRight } from "lucide-react";
-import type { Setlist } from "../lib/types";
+import type { DjExportTarget, Setlist } from "../lib/types";
 import { formatDuration } from "../lib/format";
 
 export function PerformanceView({
   setlist,
   onExport,
+  onDjExport,
 }: {
   setlist: Setlist | null;
   onExport: (format: "csv" | "json") => void;
+  onDjExport: (target: DjExportTarget) => void;
 }) {
   if (!setlist) {
     return <section><div className="page-heading"><div><p className="eyebrow">Rehearsal mode</p><h1>Performance View</h1></div></div><div className="panel empty-state"><Headphones size={36} /><h2>No set loaded</h2><p>Generate a set in Event Set Builder to see song order, cues, and transition instructions here.</p></div></section>;
@@ -16,7 +18,13 @@ export function PerformanceView({
     <section>
       <div className="page-heading">
         <div><p className="eyebrow">{setlist.event_type}</p><h1>{setlist.name}</h1><p>{setlist.items.length} tracks · {Math.round(setlist.confidence_score * 100)}% confidence</p></div>
-        <div className="heading-actions"><button className="button secondary" onClick={() => onExport("csv")}><Download size={17} /> CSV</button><button className="button primary" onClick={() => onExport("json")}><Download size={17} /> JSON</button></div>
+        <div className="heading-actions export-actions">
+          <button className="button secondary" onClick={() => onExport("csv")}><Download size={17} /> CSV</button>
+          <button className="button secondary" onClick={() => onExport("json")}><Download size={17} /> JSON</button>
+          <button className="button secondary" onClick={() => onDjExport("rekordbox")}>rekordbox</button>
+          <button className="button secondary" onClick={() => onDjExport("virtualdj")}>VirtualDJ</button>
+          <button className="button primary" onClick={() => onDjExport("serato")}>Serato bridge</button>
+        </div>
       </div>
       <div className="performance-list">
         {setlist.items.map((item) => (

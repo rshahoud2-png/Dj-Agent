@@ -13,7 +13,8 @@ Audio never needs to leave the computer. Core functionality does not use Fly.io,
 - Templates for Arabic Wedding, Wedding, Club, Lounge, Bar, Corporate, and Cafe
 - Song order, hot cues, transition type, transition bars, compatibility, and plain-language DJ instructions
 - CSV and JSON export
-- Architecture prepared for rekordbox XML, VirtualDJ `database.xml`, and Serato crate/cue adapters
+- rekordbox XML and VirtualDJ `database.xml` export adapters
+- Serato M3U8 crate bridge with a JSON cue manifest and a boundary for future native crate writing
 
 ## Architecture
 
@@ -40,6 +41,8 @@ The sidecar accepts local file paths already stored by the scanner. It does not 
 - `POST /analyze-transition`
 - `POST /generate-set-analysis`
 - `POST /setlists/{id}/export`
+- `GET /integrations`
+- `POST /setlists/{id}/export-dj`
 
 The service binds only to `127.0.0.1:17821`. Tauri's Content Security Policy only permits the UI to connect to that address.
 
@@ -88,17 +91,21 @@ npm run tauri:build
 
 The build script:
 
-1. Creates/reuses `python-engine/.venv`.
-2. Installs pinned Python dependencies.
-3. Packages the engine as a one-file PyInstaller sidecar.
-4. Builds the Tauri v2 NSIS installer.
-5. Copies the final installer to:
+1. Validates Node.js, Python 3.12, Rust, Cargo, and the MSVC Rust target.
+2. Generates Windows icons from `assets/app-icon.svg` when needed.
+3. Creates/reuses `python-engine/.venv`.
+4. Installs pinned Python dependencies.
+5. Packages the engine as a one-file PyInstaller sidecar.
+6. Builds the Tauri v2 NSIS installer.
+7. Copies the final installer to:
 
 ```text
 release\DJAgentSetup.exe
 ```
 
 Tauri's original NSIS artifact remains under `src-tauri\target\release\bundle\nsis`.
+
+Every push to `main` also runs `.github/workflows/windows-installer.yml` on a Windows runner. The workflow validates the frontend and Python engine, builds the sidecar and NSIS installer, and uploads a `DJAgentSetup` artifact containing `DJAgentSetup.exe`.
 
 ## Database
 
@@ -127,6 +134,8 @@ For release verification, also run `npm run tauri:build` on a machine with the W
 
 - Audio decoding depends on the codecs supported by `soundfile`/`audioread` in the packaged environment. Some protected or unusual AAC/M4A files may fail cleanly and remain visible in the failed queue.
 - BPM and structure analysis are estimates. Low-confidence cues are clearly marked and should be checked before a live performance.
+- Serato export currently produces a portable M3U8 crate and cue manifest. Native binary `.crate` writing remains future work.
+- rekordbox and VirtualDJ XML adapters are intentionally isolated and should be validated against the exact DJ software version used in production before overwriting any vendor database.
 - Key detection, vocal detection, waveform audio playback, and manual cue editing are not included in the first release.
 - The v0.1 set builder uses transparent rule-based energy/BPM scoring rather than a hosted AI model.
 - Code signing is not configured. Unsigned installers can trigger Windows SmartScreen until a trusted signing certificate is added.
@@ -135,11 +144,19 @@ For release verification, also run `npm run tauri:build` on a machine with the W
 
 1. Manual cue editing and waveform playback
 2. Musical key/Camelot analysis
-3. rekordbox XML export
-4. VirtualDJ `database.xml` export
-5. Serato crate and cue export
-6. Incremental folder watching
-7. Optional encrypted cloud sync that never becomes a core dependency
+3. Native Serato binary crate writing
+4. Incremental folder watching
+5. Optional encrypted cloud sync that never becomes a core dependency
+
+## DJ software integration architecture
+
+Vendor exports implement a small adapter contract in `python-engine/app/integrations.py`. Each adapter declares its key, display name, extension, and export method. Setlist analysis remains vendor-neutral; adapters consume the stored setlist payload only at export time.
+
+- `rekordbox`: Pioneer DJ XML collection, playlist, BPM, and position marks
+- `virtualdj`: VirtualDJ-style song records, scan BPM, cue POIs, and loop POI
+- `serato`: UTF-8 M3U8 crate bridge plus `.cues.json` manifest
+
+This separation keeps proprietary formats out of the analysis and database layers and allows future adapters to be registered without changing the core engine.
 
 ## Source reuse
 

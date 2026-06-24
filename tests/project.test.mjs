@@ -18,7 +18,21 @@ test("Tauri packages an NSIS installer and local sidecar", async () => {
 
 test("Python service declares all required local endpoints", async () => {
   const source = await readFile(new URL("../python-engine/app/main.py", import.meta.url), "utf8");
-  for (const endpoint of ["/health", "/analyze-track", "/generate-cues", "/analyze-transition", "/generate-set-analysis"]) {
+  for (const endpoint of ["/health", "/analyze-track", "/generate-cues", "/analyze-transition", "/generate-set-analysis", "/integrations", "/export-dj"]) {
     assert.match(source, new RegExp(endpoint.replace("/", "\\/")));
   }
+});
+
+test("Windows build validates prerequisites and generates icons", async () => {
+  const build = await readFile(new URL("../scripts/build-windows.ps1", import.meta.url), "utf8");
+  assert.match(build, /check-prerequisites\.ps1/);
+  assert.match(build, /tauri icon/);
+  assert.match(build, /DJAgentSetup\.exe/);
+});
+
+test("GitHub Actions produces the named Windows installer artifact", async () => {
+  const workflow = await readFile(new URL("../.github/workflows/windows-installer.yml", import.meta.url), "utf8");
+  assert.match(workflow, /windows-latest/);
+  assert.match(workflow, /npm run tauri:build/);
+  assert.match(workflow, /release\/DJAgentSetup\.exe/);
 });

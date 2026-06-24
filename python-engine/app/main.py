@@ -10,9 +10,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .analysis import MAX_ANALYSIS_SECONDS, SAMPLE_RATE, cue_points
 from .database import DB_PATH, connection, init_database
-from .models import ExportRequest, FolderRequest, SetRequest, TrackRequest, TransitionRequest
+from .integrations import integration_metadata
+from .models import DjSoftwareExportRequest, ExportRequest, FolderRequest, SetRequest, TrackRequest, TransitionRequest
 from .scanner import SUPPORTED_SUFFIXES, scan_folder
-from .service import analyze_track, export_setlist, generate_setlist, get_analysis, list_tracks, transition
+from .service import analyze_track, export_dj_software, export_setlist, generate_setlist, get_analysis, list_tracks, transition
 
 
 analysis_lock = asyncio.Lock()
@@ -118,5 +119,18 @@ def generate_set_analysis(request: SetRequest) -> dict[str, Any]:
 def export(setlist_id: int, request: ExportRequest) -> dict[str, str]:
     try:
         return {"path": export_setlist(setlist_id, request.format, request.destination)}
+    except Exception as exc:
+        raise bad_request(exc) from exc
+
+
+@app.get("/integrations")
+def integrations() -> list[dict[str, str]]:
+    return integration_metadata()
+
+
+@app.post("/setlists/{setlist_id}/export-dj")
+def export_dj(setlist_id: int, request: DjSoftwareExportRequest) -> dict[str, list[str]]:
+    try:
+        return {"paths": export_dj_software(setlist_id, request.target, request.destination)}
     except Exception as exc:
         raise bad_request(exc) from exc

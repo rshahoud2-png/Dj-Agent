@@ -19,6 +19,7 @@ export interface LoopCue {
 
 export interface TrackAnalysis {
   track_id: number;
+  path: string;
   title: string;
   artist: string;
   estimated_bpm: number;
@@ -34,6 +35,15 @@ export interface TrackAnalysis {
   analysis_confidence: number;
   warnings: string[];
   hot_cues: CuePoint[];
+}
+
+export type DjExportTarget = "rekordbox" | "virtualdj" | "serato";
+
+export interface DjIntegration {
+  key: DjExportTarget;
+  name: string;
+  extension: string;
+  description: string;
 }
 
 export interface Track {

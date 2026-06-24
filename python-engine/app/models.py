@@ -26,3 +26,8 @@ class SetRequest(BaseModel):
 class ExportRequest(BaseModel):
     format: str
     destination: str
+
+
+class DjSoftwareExportRequest(BaseModel):
+    target: str
+    destination: str

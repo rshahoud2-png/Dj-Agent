@@ -8,6 +8,8 @@ python-engine/app/__pycache__/
 python-engine/build/
 python-engine/dist/
 src-tauri/binaries/*.exe
+src-tauri/icons/
+release/
 *.db
 *.db-shm
 *.db-wal

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { engineApi } from "./lib/api";
-import type { EventType, Setlist, Track, TrackAnalysis } from "./lib/types";
+import type { DjExportTarget, EventType, Setlist, Track, TrackAnalysis } from "./lib/types";
 import { Sidebar, type View } from "./components/Sidebar";
 import { LibraryView } from "./components/LibraryView";
 import { QueueView } from "./components/QueueView";
@@ -139,13 +139,35 @@ function App() {
     }
   };
 
+  const exportDjSoftware = async (target: DjExportTarget) => {
+    if (!setlist) return;
+    const extensions: Record<DjExportTarget, string> = {
+      rekordbox: "xml",
+      virtualdj: "xml",
+      serato: "m3u8",
+    };
+    const extension = extensions[target];
+    const destination = await save({
+      title: `Export ${setlist.name} for ${target}`,
+      defaultPath: `${setlist.name.replace(/[^\w-]+/g, "-")}-${target}.${extension}`,
+      filters: [{ name: target, extensions: [extension] }],
+    });
+    if (!destination) return;
+    try {
+      const result = await engineApi.exportDjSoftware(setlist.id, target, destination);
+      notify(`Exported ${result.paths.length} ${target} file${result.paths.length === 1 ? "" : "s"}`);
+    } catch (error) {
+      notify(error instanceof Error ? error.message : `${target} export failed`);
+    }
+  };
+
   let content;
   if (view === "queue") {
     content = <QueueView tracks={tracks} activeTrackId={activeTrackId} processed={processed} total={queueTotal} />;
   } else if (view === "builder") {
     content = <SetBuilderView tracks={tracks} eventType={eventType} duration={duration} name={setName} setlist={setlist} busy={busy} onEventType={setEventType} onDuration={setDuration} onName={setSetName} onGenerate={generateSet} />;
   } else if (view === "performance") {
-    content = <PerformanceView setlist={setlist} onExport={exportSet} />;
+    content = <PerformanceView setlist={setlist} onExport={exportSet} onDjExport={exportDjSoftware} />;
   } else if (view === "settings") {
     content = <SettingsView databasePath={databasePath} folder={folder} />;
   } else {

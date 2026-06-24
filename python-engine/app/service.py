@@ -7,6 +7,7 @@ from typing import Any
 
 from .analysis import analyze_audio_file, average_energy, cue_points
 from .database import connection, json_value, row, rows
+from .integrations import export_for_dj_software
 
 
 def list_tracks() -> list[dict[str, Any]]:
@@ -25,7 +26,7 @@ def _decode_analysis(record: dict[str, Any]) -> dict[str, Any]:
 
 
 def get_analysis(track_id: int) -> dict[str, Any]:
-    track = row("SELECT id, title, artist FROM tracks WHERE id=?", (track_id,))
+    track = row("SELECT id, path, title, artist FROM tracks WHERE id=?", (track_id,))
     analysis = row("SELECT * FROM analyses WHERE track_id=?", (track_id,))
     if not track or not analysis:
         raise ValueError("Track analysis was not found.")
@@ -81,7 +82,7 @@ def analyze_track(track_id: int) -> dict[str, Any]:
         raise
 
 
-def transition(current: dict[str, Any], nxt: dict[str, Any]) -> dict[str, Any]:
+def transition(current: dict[str, Any], nxt: dict[str, Any], persist: bool = True) -> dict[str, Any]:
     bpm_diff = abs(current["estimated_bpm"] - nxt["estimated_bpm"])
     energy_delta = average_energy(nxt) - average_energy(current)
     if bpm_diff <= 4:
@@ -117,15 +118,16 @@ def transition(current: dict[str, Any], nxt: dict[str, Any]) -> dict[str, Any]:
         "dj_performance_instruction": instruction,
         "warnings": warnings,
     }
-    with connection() as db:
-        db.execute(
-            """INSERT INTO transitions(from_track_id, to_track_id, compatibility_score, transition_type, transition_bars, instruction, warnings)
-               VALUES (?, ?, ?, ?, ?, ?, ?)
-               ON CONFLICT(from_track_id, to_track_id) DO UPDATE SET compatibility_score=excluded.compatibility_score,
-               transition_type=excluded.transition_type, transition_bars=excluded.transition_bars,
-               instruction=excluded.instruction, warnings=excluded.warnings""",
-            (current["track_id"], nxt["track_id"], compatibility, transition_type, bars, instruction, json_value(warnings)),
-        )
+    if persist:
+        with connection() as db:
+            db.execute(
+                """INSERT INTO transitions(from_track_id, to_track_id, compatibility_score, transition_type, transition_bars, instruction, warnings)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(from_track_id, to_track_id) DO UPDATE SET compatibility_score=excluded.compatibility_score,
+                   transition_type=excluded.transition_type, transition_bars=excluded.transition_bars,
+                   instruction=excluded.instruction, warnings=excluded.warnings""",
+                (current["track_id"], nxt["track_id"], compatibility, transition_type, bars, instruction, json_value(warnings)),
+            )
     return result
 
 
@@ -163,7 +165,7 @@ def generate_setlist(event_type: str, event_duration: int, name: str) -> dict[st
         target = section_energy(section)
         def score(candidate: dict[str, Any]) -> float:
             energy_fit = 1 - abs(average_energy(candidate) - target)
-            transition_fit = transition(selected[-1], candidate)["compatibility_score"] / 100 if selected else 0.7
+            transition_fit = transition(selected[-1], candidate, persist=False)["compatibility_score"] / 100 if selected else 0.7
             artist_penalty = 0.18 if candidate["artist"] and any(previous["artist"] == candidate["artist"] for previous in selected[-3:]) else 0
             return energy_fit * 0.5 + candidate["analysis_confidence"] * 0.25 + transition_fit * 0.25 - artist_penalty
         best = max(remaining, key=score)
@@ -207,8 +209,12 @@ def export_setlist(setlist_id: int, export_format: str, destination: str) -> str
     path = Path(destination).expanduser()
     path.parent.mkdir(parents=True, exist_ok=True)
     if export_format.lower() == "json":
+        if path.suffix.lower() != ".json":
+            path = path.with_suffix(".json")
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     elif export_format.lower() == "csv":
+        if path.suffix.lower() != ".csv":
+            path = path.with_suffix(".csv")
         with path.open("w", newline="", encoding="utf-8-sig") as handle:
             writer = csv.writer(handle)
             writer.writerow(["Position", "Section", "Title", "Artist", "BPM", "Intro Cue", "Mix In Cue", "Drop Cue", "Mix Out Cue", "Transition", "DJ Instructions"])
@@ -223,3 +229,10 @@ def export_setlist(setlist_id: int, export_format: str, destination: str) -> str
     else:
         raise ValueError("Export format must be csv or json.")
     return str(path)
+
+
+def export_dj_software(setlist_id: int, target: str, destination: str) -> list[str]:
+    record = row("SELECT payload FROM setlists WHERE id=?", (setlist_id,))
+    if not record:
+        raise ValueError("Setlist was not found.")
+    return export_for_dj_software(json.loads(record["payload"]), target, destination)

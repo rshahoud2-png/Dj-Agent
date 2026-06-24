@@ -19,8 +19,17 @@ if ($InstallerProcess.ExitCode -ne 0) {
 
 $deadline = (Get-Date).AddSeconds(60)
 do {
-    $AppExecutable = Get-ChildItem -LiteralPath $InstallRoot -Filter "DJ Agent Desktop.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-    $SidecarExecutable = Get-ChildItem -LiteralPath $InstallRoot -Filter "dj-agent-engine.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+    $SearchRoots = @(
+        $InstallRoot,
+        (Join-Path $env:LOCALAPPDATA "DJ Agent Desktop"),
+        (Join-Path $env:LOCALAPPDATA "Programs\DJ Agent Desktop")
+    ) | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -Unique
+    $AppExecutable = $SearchRoots |
+        ForEach-Object { Get-ChildItem -LiteralPath $_ -Filter "dj-agent-desktop.exe" -Recurse -ErrorAction SilentlyContinue } |
+        Select-Object -First 1
+    $SidecarExecutable = $SearchRoots |
+        ForEach-Object { Get-ChildItem -LiteralPath $_ -Filter "dj-agent-engine*.exe" -Recurse -ErrorAction SilentlyContinue } |
+        Select-Object -First 1
     if ($AppExecutable -and $SidecarExecutable) {
         break
     }
@@ -34,10 +43,15 @@ if (-not $SidecarExecutable) {
     throw "The installed Python sidecar executable was not found under $InstallRoot."
 }
 
+Get-Process -Name "dj-agent-desktop", "dj-agent-engine*" -ErrorAction SilentlyContinue |
+    Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Milliseconds 500
+
 & (Join-Path $PSScriptRoot "test-sidecar.ps1") -Executable $SidecarExecutable.FullName -Port 17831
 Write-Host "Installed DJAgentSetup.exe contents and sidecar runtime checks passed."
 
-$Uninstaller = Get-ChildItem -LiteralPath $InstallRoot -Filter "*uninstall*.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+$InstalledRoot = $AppExecutable.Directory.FullName
+$Uninstaller = Get-ChildItem -LiteralPath $InstalledRoot -Filter "*uninstall*.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($Uninstaller) {
     $UninstallProcess = Start-Process -FilePath $Uninstaller.FullName -ArgumentList "/S" -PassThru -Wait -WindowStyle Hidden
     if ($UninstallProcess.ExitCode -ne 0) {

@@ -1,5 +1,31 @@
 export type TrackStatus = "pending" | "analyzing" | "complete" | "failed";
 
+export interface HealthResponse {
+  status: string;
+  database_path: string;
+}
+
+export interface RuntimeCheck {
+  key: string;
+  label: string;
+  ok: boolean;
+  details: string;
+  repair: string;
+}
+
+export interface RuntimeDiagnostics {
+  status: "ok" | "error";
+  checks: RuntimeCheck[];
+}
+
+export interface NativeStartupDiagnostics {
+  sidecar_exists: boolean;
+  sidecar_launched: boolean;
+  sidecar_path: string;
+  error: string;
+  repair: string;
+}
+
 export interface CuePoint {
   id?: number;
   label: string;

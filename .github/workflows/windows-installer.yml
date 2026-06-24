@@ -67,6 +67,10 @@ jobs:
         shell: pwsh
         run: powershell -ExecutionPolicy Bypass -File scripts/build-windows.ps1 -Unsigned
 
+      - name: Test clean installer contents
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File scripts/test-installer.ps1
+
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:

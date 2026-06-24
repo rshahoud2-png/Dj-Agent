@@ -1,4 +1,4 @@
-import type { DjExportTarget, DjIntegration, EventType, Setlist, Track, TrackAnalysis } from "./types";
+import type { DjExportTarget, DjIntegration, EventType, HealthResponse, RuntimeDiagnostics, Setlist, Track, TrackAnalysis } from "./types";
 
 const ENGINE_URL = import.meta.env.VITE_ENGINE_URL ?? "http://127.0.0.1:17821";
 
@@ -15,7 +15,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const engineApi = {
-  health: () => request<{ status: string; database_path: string }>("/health"),
+  health: () => request<HealthResponse>("/health"),
+  diagnostics: () => request<RuntimeDiagnostics>("/diagnostics"),
   scanLibrary: (folder: string) =>
     request<{ discovered: number; added: number; updated: number }>("/scan-library", {
       method: "POST",

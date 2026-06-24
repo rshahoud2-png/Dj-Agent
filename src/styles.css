@@ -198,6 +198,25 @@ tbody tr:hover { background: rgba(245,197,66,.045); }
 .warning-card p { margin: 5px 0; font-size: 11px; }
 .toast { position: fixed; right: 24px; bottom: 24px; z-index: 80; max-width: 430px; padding: 13px 17px; color: #0b0903; border-radius: 9px; background: linear-gradient(135deg, var(--gold), var(--gold-soft)); box-shadow: 0 18px 60px rgba(0,0,0,.55); font-size: 13px; font-weight: 800; }
 
+.diagnostics-screen { min-height: 100vh; display: grid; place-items: center; padding: 44px; background: radial-gradient(circle at 50% 0, rgba(245,197,66,.15), transparent 35rem), #050505; }
+.diagnostics-panel { width: min(820px, 100%); padding: 30px; }
+.diagnostics-title { display: flex; gap: 17px; align-items: center; padding-bottom: 23px; border-bottom: 1px solid rgba(255,255,255,.07); }
+.diagnostics-mark { width: 52px; height: 52px; display: grid; place-items: center; flex-shrink: 0; color: #080601; border-radius: 15px; background: linear-gradient(135deg, var(--gold), var(--gold-soft)); }
+.diagnostics-title h1 { margin: 6px 0; font-size: 30px; }
+.diagnostics-title p { margin: 0; color: var(--muted); font-size: 12px; }
+.diagnostics-list { display: grid; gap: 8px; margin: 20px 0; }
+.diagnostic-row { display: grid; grid-template-columns: 24px 1fr; gap: 12px; align-items: start; padding: 13px 14px; border: 1px solid rgba(255,255,255,.075); border-radius: 9px; background: rgba(0,0,0,.22); }
+.diagnostic-row.passed > svg { color: #65d694; }
+.diagnostic-row.failed { border-color: rgba(255,89,62,.2); background: rgba(255,89,62,.055); }
+.diagnostic-row.failed > svg { color: #ff917e; }
+.diagnostic-row.checking > svg { color: var(--gold); }
+.diagnostic-row strong, .diagnostic-row p, .diagnostic-row small { display: block; }
+.diagnostic-row p { margin: 4px 0 0; color: var(--muted); font-size: 11px; line-height: 1.45; overflow-wrap: anywhere; }
+.diagnostic-row small { margin-top: 7px; color: #f0b190; line-height: 1.45; }
+.diagnostics-actions { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding-top: 18px; border-top: 1px solid rgba(255,255,255,.07); }
+.diagnostics-actions > p { margin: 0; color: var(--muted); font-size: 12px; }
+.diagnostics-actions > div { display: flex; gap: 9px; margin-left: auto; }
+
 @media (max-width: 1180px) {
   .stat-grid, .settings-grid { grid-template-columns: repeat(2, 1fr); }
   .builder-grid { grid-template-columns: 1fr; }

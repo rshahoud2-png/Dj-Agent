@@ -43,6 +43,9 @@
       "binaries/dj-agent-engine"
     ],
     "windows": {
+      "webviewInstallMode": {
+        "type": "offlineInstaller"
+      },
       "nsis": {
         "displayLanguageSelector": false,
         "installMode": "currentUser"

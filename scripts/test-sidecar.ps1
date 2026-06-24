@@ -5,36 +5,44 @@ param(
 
 $ErrorActionPreference = "Stop"
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
-$ExecutablePath = [IO.Path]::GetFullPath((Join-Path $ProjectRoot $Executable))
+$ExecutablePath = if ([IO.Path]::IsPathRooted($Executable)) {
+    [IO.Path]::GetFullPath($Executable)
+} else {
+    [IO.Path]::GetFullPath((Join-Path $ProjectRoot $Executable))
+}
 
 if (-not (Test-Path -LiteralPath $ExecutablePath)) {
     throw "Packaged sidecar was not found: $ExecutablePath"
 }
 
-$stdout = Join-Path $env:TEMP "dj-agent-sidecar-smoke.stdout.log"
-$stderr = Join-Path $env:TEMP "dj-agent-sidecar-smoke.stderr.log"
-Remove-Item -LiteralPath $stdout, $stderr -Force -ErrorAction SilentlyContinue
-
-$env:DJ_AGENT_ENGINE_PORT = [string]$Port
-$process = Start-Process -FilePath $ExecutablePath -PassThru -WindowStyle Hidden `
-    -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+$existingProcessIds = @(Get-Process -Name "dj-agent-engine" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id)
+& cmd.exe /d /c start '""' /b "`"$ExecutablePath`"" --port $Port
+if ($LASTEXITCODE -ne 0) {
+    throw "Windows could not launch the packaged sidecar (exit code $LASTEXITCODE)."
+}
+Start-Sleep -Milliseconds 500
+$process = Get-Process -Name "dj-agent-engine" -ErrorAction SilentlyContinue |
+    Where-Object { $_.Id -notin $existingProcessIds } |
+    Sort-Object StartTime -Descending |
+    Select-Object -First 1
 
 try {
     $passed = $false
     $deadline = (Get-Date).AddSeconds(45)
     do {
         if ($process.HasExited) {
-            $details = @(
-                "The packaged sidecar exited with code $($process.ExitCode)."
-                (Get-Content -LiteralPath $stdout -Raw -ErrorAction SilentlyContinue)
-                (Get-Content -LiteralPath $stderr -Raw -ErrorAction SilentlyContinue)
-            ) -join [Environment]::NewLine
-            throw $details
+            throw "The packaged sidecar exited with code $($process.ExitCode)."
         }
         try {
             $health = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/health" -TimeoutSec 2
             if ($health.status -eq "ok" -and $health.service -eq "dj-agent-desktop-engine") {
-                Write-Host "Packaged sidecar health check passed."
+                $diagnostics = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/diagnostics" -TimeoutSec 30
+                $failed = @($diagnostics.checks | Where-Object { -not $_.ok })
+                if ($failed.Count -gt 0) {
+                    $details = ($failed | ForEach-Object { "$($_.label): $($_.details)" }) -join [Environment]::NewLine
+                    throw "Packaged sidecar runtime diagnostics failed:$([Environment]::NewLine)$details"
+                }
+                Write-Host "Packaged sidecar health, FFmpeg, SQLite, and native dependency checks passed."
                 $passed = $true
                 break
             }
@@ -51,5 +59,4 @@ try {
         Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
         $process.WaitForExit()
     }
-    Remove-Item Env:DJ_AGENT_ENGINE_PORT -ErrorAction SilentlyContinue
 }

@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { engineApi } from "./lib/api";
-import type { DjExportTarget, EventType, Setlist, Track, TrackAnalysis } from "./lib/types";
+import type { DjExportTarget, EventType, HealthResponse, Setlist, Track, TrackAnalysis } from "./lib/types";
 import { Sidebar, type View } from "./components/Sidebar";
 import { LibraryView } from "./components/LibraryView";
 import { QueueView } from "./components/QueueView";
@@ -9,6 +9,7 @@ import { SetBuilderView } from "./components/SetBuilderView";
 import { PerformanceView } from "./components/PerformanceView";
 import { SettingsView } from "./components/SettingsView";
 import { TrackDetail } from "./components/TrackDetail";
+import { StartupDiagnostics } from "./components/StartupDiagnostics";
 
 function App() {
   const [view, setView] = useState<View>("library");
@@ -27,6 +28,7 @@ function App() {
   const [setName, setSetName] = useState("Saturday Night Set");
   const [setlist, setSetlist] = useState<Setlist | null>(null);
   const [toast, setToast] = useState("");
+  const [startupComplete, setStartupComplete] = useState(false);
 
   const notify = useCallback((message: string) => {
     setToast(message);
@@ -38,27 +40,12 @@ function App() {
     setTracks(result);
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    const connect = async () => {
-      for (let attempt = 0; attempt < 25 && !cancelled; attempt += 1) {
-        try {
-          const health = await engineApi.health();
-          if (!cancelled) {
-            setEngineReady(true);
-            setDatabasePath(health.database_path);
-            await refreshTracks();
-          }
-          return;
-        } catch {
-          await new Promise((resolve) => window.setTimeout(resolve, 400));
-        }
-      }
-      if (!cancelled) notify("The local analysis engine did not start. See README troubleshooting.");
-    };
-    void connect();
-    return () => { cancelled = true; };
-  }, [notify, refreshTracks]);
+  const finishStartup = async (health: HealthResponse) => {
+    setEngineReady(true);
+    setDatabasePath(health.database_path);
+    await refreshTracks();
+    setStartupComplete(true);
+  };
 
   const chooseFolder = async () => {
     const selected = await open({ directory: true, multiple: false, title: "Select your music library" });
@@ -172,6 +159,10 @@ function App() {
     content = <SettingsView databasePath={databasePath} folder={folder} />;
   } else {
     content = <LibraryView tracks={tracks} folder={folder} search={search} busy={busy} onSearch={setSearch} onChooseFolder={chooseFolder} onAnalyzePending={analyzePending} onSelectTrack={selectTrack} />;
+  }
+
+  if (!startupComplete) {
+    return <StartupDiagnostics onReady={finishStartup} />;
   }
 
   return (

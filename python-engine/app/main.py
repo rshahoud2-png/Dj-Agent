@@ -13,6 +13,7 @@ from .database import DB_PATH, connection, init_database
 from .integrations import integration_metadata
 from .models import DjSoftwareExportRequest, ExportRequest, FolderRequest, SetRequest, TrackRequest, TransitionRequest
 from .scanner import SUPPORTED_SUFFIXES, scan_folder
+from .runtime import runtime_diagnostics
 from .service import analyze_track, export_dj_software, export_setlist, generate_setlist, get_analysis, list_tracks, transition
 
 
@@ -49,6 +50,11 @@ def health() -> dict[str, Any]:
         "supported_suffixes": sorted(SUPPORTED_SUFFIXES),
         "database_path": str(DB_PATH),
     }
+
+
+@app.get("/diagnostics")
+def diagnostics() -> dict[str, Any]:
+    return runtime_diagnostics()
 
 
 @app.post("/scan-library")

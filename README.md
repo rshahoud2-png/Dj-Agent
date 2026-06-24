@@ -55,7 +55,9 @@ Install:
 2. Python 3.12 (64-bit)
 3. Rust stable with the `x86_64-pc-windows-msvc` target
 4. Microsoft Visual Studio Build Tools with **Desktop development with C++**
-5. WebView2 Runtime (included on current Windows 10/11)
+5. WebView2 Runtime (only needed on the developer machine; the release installer embeds Microsoft's offline WebView2 installer)
+
+These are build prerequisites only. DJs installing `DJAgentSetup.exe` do not need Node.js, Python, Rust, FFmpeg, SQLite, Visual Studio, or separate scientific libraries.
 
 Python 3.12 is intentionally used for the packaged analysis environment because scientific-audio wheels may lag the newest Python releases.
 
@@ -96,10 +98,11 @@ The build script:
 2. Generates Windows icons from `assets/app-icon.svg` when needed.
 3. Creates/reuses `python-engine/.venv`.
 4. Installs pinned Python dependencies.
-5. Packages the engine as a one-file PyInstaller sidecar.
-6. Launches the frozen sidecar and verifies its local `/health` endpoint.
-7. Builds the Tauri v2 NSIS installer without a console window.
-8. Copies the final installer to:
+5. Packages Python 3.12, librosa, NumPy, SciPy, SoundFile/libsndfile, and FFmpeg as a one-file PyInstaller sidecar.
+6. Inspects the PyInstaller archive for the embedded runtime, codec, and native library files.
+7. Launches the frozen sidecar and verifies `/health`, FFmpeg, SQLite, app-data writes, and native imports.
+8. Builds the Tauri v2 NSIS installer without a console window and embeds Microsoft's offline WebView2 installer.
+9. Copies the final installer to:
 
 ```text
 release\DJAgentSetup.exe
@@ -108,6 +111,25 @@ release\DJAgentSetup.exe
 Tauri's original NSIS artifact remains under `src-tauri\target\release\bundle\nsis`.
 
 Every push to `main` also runs `.github/workflows/windows-installer.yml` on a Windows runner. The workflow validates the frontend and Python engine, builds the sidecar and NSIS installer, and uploads a `DJAgentSetup` artifact containing `DJAgentSetup.exe`.
+
+Before upload, CI silently installs that exact setup file into a temporary directory, confirms the installed Tauri executable and Python sidecar are present, runs the installed sidecar's complete runtime diagnostics, and uninstalls the smoke-test copy.
+
+## Clean Windows installation
+
+The release target is 64-bit Windows 10 and Windows 11. A normal DJ user only runs `DJAgentSetup.exe`; administrator access is not required because the NSIS package installs for the current user.
+
+The installer/application includes or initializes:
+
+- Microsoft WebView2 offline installer, so first installation does not depend on WebView2 already being present or on an internet download
+- The Tauri desktop executable and bundled `dj-agent-engine.exe` sidecar
+- A frozen Python 3.12 runtime; system Python is neither detected nor required
+- librosa, NumPy, SciPy, scikit-learn, Numba, SoundFile, libsndfile, and their PyInstaller-collected native DLLs
+- A bundled FFmpeg executable used for AAC, M4A, and other codec fallback
+- Python's built-in SQLite library; the database is created under `%LOCALAPPDATA%\DJ Agent Desktop`
+
+On each launch, the diagnostics screen verifies that the sidecar exists and starts, `/health` responds, FFmpeg runs, native audio/scientific libraries import, SQLite is writable, and the app-data directory is writable. Failed checks include a repair instruction. The usual repair is to reinstall the latest official `DJAgentSetup.exe`, restore `dj-agent-engine.exe` if antivirus quarantined it, or restore write access/free disk space under `%LOCALAPPDATA%`.
+
+Internet access is not required for installation or core analysis. It is only needed when the user explicitly checks GitHub Releases for an app update.
 
 ## Live updates
 
@@ -140,7 +162,7 @@ For release verification, also run `npm run tauri:build` on a machine with the W
 
 ## Known limitations
 
-- Audio decoding depends on the codecs supported by `soundfile`/`audioread` in the packaged environment. Some protected or unusual AAC/M4A files may fail cleanly and remain visible in the failed queue.
+- DRM-protected audio and malformed files cannot be decoded. Standard AAC/M4A fallback is provided by the bundled FFmpeg executable.
 - BPM and structure analysis are estimates. Low-confidence cues are clearly marked and should be checked before a live performance.
 - Serato export currently produces a portable M3U8 crate and cue manifest. Native binary `.crate` writing remains future work.
 - rekordbox and VirtualDJ XML adapters are intentionally isolated and should be validated against the exact DJ software version used in production before overwriting any vendor database.

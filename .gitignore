@@ -7,6 +7,7 @@ python-engine/__pycache__/
 python-engine/app/__pycache__/
 python-engine/build/
 python-engine/dist/
+python-engine/*.spec
 src-tauri/binaries/*.exe
 src-tauri/icons/
 release/

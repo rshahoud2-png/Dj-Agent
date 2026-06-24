@@ -15,6 +15,7 @@ Audio never needs to leave the computer. Core functionality does not use Fly.io,
 - CSV and JSON export
 - rekordbox XML and VirtualDJ `database.xml` export adapters
 - Serato M3U8 crate bridge with a JSON cue manifest and a boundary for future native crate writing
+- Signed in-app updates from GitHub Releases with release notes and automatic restart
 
 ## Architecture
 
@@ -96,8 +97,9 @@ The build script:
 3. Creates/reuses `python-engine/.venv`.
 4. Installs pinned Python dependencies.
 5. Packages the engine as a one-file PyInstaller sidecar.
-6. Builds the Tauri v2 NSIS installer.
-7. Copies the final installer to:
+6. Launches the frozen sidecar and verifies its local `/health` endpoint.
+7. Builds the Tauri v2 NSIS installer without a console window.
+8. Copies the final installer to:
 
 ```text
 release\DJAgentSetup.exe
@@ -106,6 +108,12 @@ release\DJAgentSetup.exe
 Tauri's original NSIS artifact remains under `src-tauri\target\release\bundle\nsis`.
 
 Every push to `main` also runs `.github/workflows/windows-installer.yml` on a Windows runner. The workflow validates the frontend and Python engine, builds the sidecar and NSIS installer, and uploads a `DJAgentSetup` artifact containing `DJAgentSetup.exe`.
+
+## Live updates
+
+DJ Agent Desktop 0.2.0 and newer can check GitHub Releases from **Settings > Updates**, display release notes, download a signed installer, install it in passive mode, and restart automatically. Release builds require the private Tauri updater key in the `TAURI_SIGNING_PRIVATE_KEY` GitHub Actions secret.
+
+See [docs/updates.md](docs/updates.md) for version bumping, one-time signing setup, publishing a tagged release, and the installed update flow.
 
 ## Database
 
@@ -138,7 +146,7 @@ For release verification, also run `npm run tauri:build` on a machine with the W
 - rekordbox and VirtualDJ XML adapters are intentionally isolated and should be validated against the exact DJ software version used in production before overwriting any vendor database.
 - Key detection, vocal detection, waveform audio playback, and manual cue editing are not included in the first release.
 - The v0.1 set builder uses transparent rule-based energy/BPM scoring rather than a hosted AI model.
-- Code signing is not configured. Unsigned installers can trigger Windows SmartScreen until a trusted signing certificate is added.
+- Tauri updater packages are cryptographically signed. Windows Authenticode signing is separate and is not yet configured, so first-time installers can still trigger SmartScreen.
 
 ## Roadmap
 

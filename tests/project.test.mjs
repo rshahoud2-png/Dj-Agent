@@ -14,6 +14,8 @@ test("Tauri packages an NSIS installer and local sidecar", async () => {
   assert.deepEqual(config.bundle.targets, ["nsis"]);
   assert.deepEqual(config.bundle.externalBin, ["binaries/dj-agent-engine"]);
   assert.equal(config.productName, "DJ Agent Desktop");
+  assert.equal(config.bundle.createUpdaterArtifacts, true);
+  assert.match(config.plugins.updater.endpoints[0], /github\.com\/rshahoud2-png\/Dj-Agent\/releases/);
 });
 
 test("Python service declares all required local endpoints", async () => {
@@ -25,14 +27,33 @@ test("Python service declares all required local endpoints", async () => {
 
 test("Windows build validates prerequisites and generates icons", async () => {
   const build = await readFile(new URL("../scripts/build-windows.ps1", import.meta.url), "utf8");
+  const sidecarBuild = await readFile(new URL("../scripts/build-sidecar.ps1", import.meta.url), "utf8");
+  const sidecarEntry = await readFile(new URL("../python-engine/run.py", import.meta.url), "utf8");
   assert.match(build, /check-prerequisites\.ps1/);
   assert.match(build, /tauri icon/);
   assert.match(build, /DJAgentSetup\.exe/);
+  assert.match(sidecarBuild, /test-sidecar\.ps1/);
+  assert.match(sidecarEntry, /from app\.main import app/);
+  assert.doesNotMatch(sidecarEntry, /"app\.main:app"/);
 });
 
 test("GitHub Actions produces the named Windows installer artifact", async () => {
   const workflow = await readFile(new URL("../.github/workflows/windows-installer.yml", import.meta.url), "utf8");
   assert.match(workflow, /windows-latest/);
-  assert.match(workflow, /npm run tauri:build/);
+  assert.match(workflow, /build-windows\.ps1 -Unsigned/);
   assert.match(workflow, /release\/DJAgentSetup\.exe/);
+});
+
+test("signed GitHub Releases power the in-app updater", async () => {
+  const workflow = await readFile(new URL("../.github/workflows/release.yml", import.meta.url), "utf8");
+  const settings = await readFile(new URL("../src/components/UpdatesPanel.tsx", import.meta.url), "utf8");
+  const capabilities = JSON.parse(await readFile(new URL("../src-tauri/capabilities/default.json", import.meta.url), "utf8"));
+  assert.match(workflow, /tauri-apps\/tauri-action@v1/);
+  assert.match(workflow, /TAURI_SIGNING_PRIVATE_KEY/);
+  assert.match(workflow, /uploadUpdaterJson: true/);
+  assert.match(settings, /Check for Updates/);
+  assert.match(settings, /downloadAndInstall/);
+  assert.match(settings, /relaunch/);
+  assert.ok(capabilities.permissions.includes("updater:default"));
+  assert.ok(capabilities.permissions.includes("process:default"));
 });

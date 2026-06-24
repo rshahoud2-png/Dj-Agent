@@ -14,6 +14,7 @@ on:
       - "package-lock.json"
       - "vite.config.ts"
       - ".github/workflows/windows-installer.yml"
+      - ".github/workflows/release.yml"
 
 permissions:
   contents: read
@@ -63,7 +64,8 @@ jobs:
           python python-engine/test_engine.py
 
       - name: Build DJAgentSetup.exe
-        run: npm run tauri:build
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File scripts/build-windows.ps1 -Unsigned
 
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4

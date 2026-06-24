@@ -37,3 +37,5 @@ New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
 Copy-Item -Force (Join-Path $EngineRoot "dist\dj-agent-engine.exe") `
     (Join-Path $OutputDir "dj-agent-engine-$Target.exe")
 Write-Host "Sidecar ready: src-tauri\binaries\dj-agent-engine-$Target.exe"
+
+& (Join-Path $PSScriptRoot "test-sidecar.ps1")

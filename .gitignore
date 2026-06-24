@@ -10,6 +10,7 @@ python-engine/dist/
 src-tauri/binaries/*.exe
 src-tauri/icons/
 release/
+work-keys/
 *.db
 *.db-shm
 *.db-wal

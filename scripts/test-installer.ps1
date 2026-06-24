@@ -12,9 +12,9 @@ if (Test-Path -LiteralPath $InstallRoot) {
     throw "Installer smoke-test location already exists: $InstallRoot"
 }
 
-& $InstallerPath /S "/D=$InstallRoot"
-if ($LASTEXITCODE -ne 0) {
-    throw "DJAgentSetup.exe silent installation failed with exit code $LASTEXITCODE."
+$InstallerProcess = Start-Process -FilePath $InstallerPath -ArgumentList @("/S", "/D=$InstallRoot") -PassThru -Wait -WindowStyle Hidden
+if ($InstallerProcess.ExitCode -ne 0) {
+    throw "DJAgentSetup.exe silent installation failed with exit code $($InstallerProcess.ExitCode)."
 }
 
 $deadline = (Get-Date).AddSeconds(60)
@@ -39,8 +39,8 @@ Write-Host "Installed DJAgentSetup.exe contents and sidecar runtime checks passe
 
 $Uninstaller = Get-ChildItem -LiteralPath $InstallRoot -Filter "*uninstall*.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($Uninstaller) {
-    & $Uninstaller.FullName /S
-    if ($LASTEXITCODE -ne 0) {
-        Write-Warning "Smoke-test uninstall returned exit code $LASTEXITCODE."
+    $UninstallProcess = Start-Process -FilePath $Uninstaller.FullName -ArgumentList "/S" -PassThru -Wait -WindowStyle Hidden
+    if ($UninstallProcess.ExitCode -ne 0) {
+        Write-Warning "Smoke-test uninstall returned exit code $($UninstallProcess.ExitCode)."
     }
 }

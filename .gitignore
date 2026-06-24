@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.vite/
+src-tauri/target/
+python-engine/.venv/
+python-engine/__pycache__/
+python-engine/app/__pycache__/
+python-engine/build/
+python-engine/dist/
+src-tauri/binaries/*.exe
+*.db
+*.db-shm
+*.db-wal
+.env
+.DS_Store

@@ -1,0 +1,42 @@
+{
+  "name": "dj-agent-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --configLoader runner",
+    "build": "tsc && vite build --configLoader runner",
+    "preview": "vite preview",
+    "tauri": "powershell -ExecutionPolicy Bypass -File scripts/tauri.ps1",
+    "tauri:dev": "npm run sidecar:build && tauri dev",
+    "tauri:build": "powershell -ExecutionPolicy Bypass -File scripts/build-windows.ps1",
+    "sidecar:dev": "python python-engine/run.py",
+    "sidecar:build": "powershell -ExecutionPolicy Bypass -File scripts/build-sidecar.ps1",
+    "test": "node --test tests/project.test.mjs",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.8.0",
+    "@tauri-apps/plugin-dialog": "^2.4.0",
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@tauri-apps/cli": "^2.8.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^9.17.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint-plugin-react-refresh": "^0.4.16",
+    "globals": "^15.14.0",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "~5.7.2",
+    "typescript-eslint": "^8.18.2",
+    "vite": "^6.0.5"
+  }
+}
